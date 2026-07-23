@@ -15,16 +15,16 @@ class SimulatedCPUHandler(Handler):
         self.tdp = tdp * utilization
 
     def devices(self) -> List[str]:
-        return [self.cpu_brand]
+        pass
 
     def available(self) -> bool:
-        return True
+        pass
 
     def power_usage(self) -> List[float]:
-        return [self.tdp]
+        pass
 
     def init(self):
-        print(f"Using simulated CPU: {self.cpu_brand} with TDP: {self.tdp:.2f}W (at {self.utilization*100:.0f}% utilization)")
+        pass
 
     def shutdown(self):
         pass

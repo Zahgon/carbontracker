@@ -15,31 +15,31 @@ class SimulatedGPUHandler(Handler):
         self.watts = watts * utilization
 
     def devices(self) -> List[str]:
-        return [self.gpu_brand]
+        pass
 
     def available(self) -> bool:
-        return True
+        pass
 
     def power_usage(self) -> List[float]:
-        return [self.watts]
+        pass
 
     def init(self):
-        print(f"Using simulated GPU: {self.gpu_brand} with power consumption: {self.watts:.2f}W (at {self.utilization*100:.0f}% utilization)")
+        pass
 
     def shutdown(self):
         pass
 
     def devices(self) -> List[str]:
-        return [self.gpu_brand]
+        pass
 
     def available(self) -> bool:
-        return True
+        pass
 
     def power_usage(self) -> List[float]:
-        return [self.watts]
+        pass
 
     def init(self):
-        print(f"Using simulated GPU: {self.gpu_brand} with power consumption: {self.watts:.2f}W (at {self.utilization*100:.0f}% utilization)")
+        pass
 
     def shutdown(self):
         pass 

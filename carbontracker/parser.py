@@ -8,47 +8,7 @@ from typing import Dict, Union, List
 
 
 def parse_all_logs(log_dir):
-    """
-    Parse all logs in directory.
-
-    Args:
-        log_dir (str): Directory of logs
-
-    Returns:
-        (dict[]): List of log entries of shape
-
-                {
-                    "output_filename": str,
-                    "standard_filename": str,
-                    "components": dict, # See parse_logs
-                    "early_stop": bool,
-                    "actual": dict | None, # See get_consumption
-                    "pred": dict | None, # See get_consumption
-                }
-    """
-    logs = []
-    output_logs, std_logs = get_all_logs(log_dir)
-
-    for out, std in zip(output_logs, std_logs):
-        with open(std, "r") as f:
-            std_log_data = f.read()
-
-        with open(out, "r") as f:
-            output_log_data = f.read()
-
-        actual, pred = get_consumption(output_log_data)
-        early_stop = get_early_stop(std_log_data)
-        entry = {
-            "output_filename": out,
-            "standard_filename": std,
-            "components": parse_logs(log_dir, std, out),
-            "early_stop": early_stop,
-            "actual": actual,
-            "pred": pred,
-        }
-        logs.append(entry)
-
-    return logs
+    pass
 
 
 def parse_logs(log_dir, std_log_file=None, output_log_file=None):
@@ -244,7 +204,6 @@ def aggregate_consumption(log_dir):
             energy = actual["energy (kWh)"]
             co2eq = actual["co2eq (g)"]
             equivalents = actual["equivalents"]
-        # Both actual and pred is available
         elif pred is not None and actual is not None:
             actual_epochs = actual["epochs"]
             pred_epochs = pred["epochs"]
@@ -320,7 +279,6 @@ def get_all_logs(log_dir):
     output_logs = sorted(list(filter(output_re.match, files)))
     std_logs = sorted(list(filter(std_re.match, files)))
     if len(output_logs) != len(std_logs):
-        # Try to remove the files with no matching output/std logs
         op_fn = [f.split("_carbontracker")[0] for f in output_logs]
         std_fn = [f.split("_carbontracker")[0] for f in std_logs]
         if len(std_logs) > len(output_logs):
@@ -329,7 +287,6 @@ def get_all_logs(log_dir):
         else:
             missing_logs = list(set(op_fn) - set(std_fn))
             [output_logs.remove(f + "_carbontracker_output.log") for f in missing_logs]
-        ### Even after removal if then there is a mismatch, then throw the error
         if len(output_logs) != len(std_logs):
             raise exceptions.MismatchedLogFilesError(
                 f"Found {len(output_logs)} output logs and {len(std_logs)} "
@@ -356,7 +313,6 @@ def get_devices(std_log_data: str) -> Dict[str, List[str]]:
     """
     comp_re = re.compile(r"The following components were found:(.*)\n")
     device_re = re.compile(r" (.*?) with device\(s\) (.*?)\.")
-    # Take first match as we only expect one.
     match = re.findall(comp_re, std_log_data)
     if not match:
         return {}
@@ -433,13 +389,11 @@ def get_most_recent_logs(log_dir):
         std_log (str): File name of latest standard log
         output_log (str): File name of latest output log
     """
-    # Get all files in log_dir.
     files = [
         os.path.join(log_dir, f)
         for f in os.listdir(log_dir)
         if os.path.isfile(os.path.join(log_dir, f))
     ]
-    # Find output and standard logs and sort by modified date.
     output_re = re.compile(r".*carbontracker_output.log")
     std_re = re.compile(r".*carbontracker.log")
     output_logs = list(filter(output_re.match, files))

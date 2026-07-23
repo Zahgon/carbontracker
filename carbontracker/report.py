@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import io
 
-# Check for optional reportlab dependency
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import letter
@@ -16,7 +15,6 @@ try:
 except ImportError:
     REPORTLAB_AVAILABLE = False
 
-# Set the style for all plots
 sns.set_style("whitegrid")
 sns.set_palette("husl")
 plt.rcParams.update({
@@ -61,82 +59,10 @@ class LogParser:
         self._parse_log()
     
     def _parse_log(self):
-        print("Parsing Log")
-        # Parse version and PUE info
-        version_match = re.search(r'carbontracker version ([\d\.]+)', self.log_content)
-        if version_match:
-            self.version = version_match.group(1)
-            
-        pue_match = re.search(r'PUE coefficient of ([\d\.]+)', self.log_content)
-        if pue_match:
-            self.pue = float(pue_match.group(1))
-        
-        # Parse components
-        components_match = re.search(r'The following components were found: (.*)', self.log_content)
-        if components_match:
-            self.components = components_match.group(1)
-        
-        # Parse epochs - handle cases where only CPU or only GPU is present
-        epoch_pattern = r'Epoch (\d+):\n.*?Duration: ([\d:\.]+)'
-        epoch_matches = list(re.finditer(epoch_pattern, self.log_content, re.DOTALL))
-        
-        for i, match in enumerate(epoch_matches):
-            epoch_num = int(match.group(1))
-            duration = self._parse_duration(match.group(2))
-            
-            # Find the text block for this epoch (until next epoch or end)
-            start_pos = match.end()
-            if i + 1 < len(epoch_matches):
-                end_pos = epoch_matches[i + 1].start()
-            else:
-                end_pos = len(self.log_content)
-            epoch_block = self.log_content[start_pos:end_pos]
-            
-            # Parse GPU power (optional)
-            gpu_match = re.search(r'Average power usage \(W\) for gpu: ([\d\.]+)', epoch_block)
-            gpu_power = float(gpu_match.group(1)) if gpu_match else 0.0
-            
-            # Parse CPU power (optional)
-            cpu_match = re.search(r'Average power usage \(W\) for cpu: ([\d\.]+)', epoch_block)
-            cpu_power = float(cpu_match.group(1)) if cpu_match else 0.0
-            
-            self.epochs.append({
-                'epoch': epoch_num,
-                'duration': duration,
-                'gpu_power': gpu_power,
-                'cpu_power': cpu_power,
-                'total_power': gpu_power + cpu_power
-            })
-        
-        # Parse carbon intensity - try summary format first, then epoch format
-        ci_match = re.search(r'Average carbon intensity during training was ([\d\.]+) gCO2eq/kWh at detected location: (.*)', self.log_content)
-        if ci_match:
-            self.carbon_intensity = float(ci_match.group(1))
-            self.location = ci_match.group(2)
-        else:
-            # Try epoch-level format: "Carbon intensities (gCO2eq/kWh) fetched every N s at detected location LOCATION: [VALUES]"
-            ci_epoch_match = re.search(r'Carbon intensities \(gCO2eq/kWh\) fetched every \d+ s at detected location ([^:]+): \[([\d\.,\s]+)\]', self.log_content)
-            if ci_epoch_match:
-                self.location = ci_epoch_match.group(1).strip()
-                # Parse the list of values and average them
-                values_str = ci_epoch_match.group(2)
-                values = [float(v.strip()) for v in values_str.split(',')]
-                self.carbon_intensity = sum(values) / len(values)
-        
-        # Parse timestamps
-        timestamp_pattern = r'(\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2})'
-        timestamps = re.findall(timestamp_pattern, self.log_content)
-        if timestamps:
-            self.start_time = timestamps[0]
-            self.end_time = timestamps[-1]
+        pass
 
     def _parse_duration(self, duration_str):
-        parts = duration_str.split(':')
-        if len(parts) == 3:  # HH:MM:SS
-            return int(parts[0]) * 3600 + int(parts[1]) * 60 + float(parts[2])
-        elif len(parts) == 2:  # MM:SS
-            return int(parts[0]) * 60 + float(parts[1])
-        return float(duration_str)
+        pass
 
     def calculate_energy_metrics(self):
         if not self.epochs:
@@ -149,10 +75,8 @@ class LogParser:
         avg_cpu_power = sum(epoch['cpu_power'] for epoch in self.epochs) / len(self.epochs)
         total_power = avg_gpu_power + avg_cpu_power
         
-        # Calculate energy in kWh
         energy_kwh = (total_power * total_duration) / 3600 / 1000
         
-        # Calculate CO2 emissions in kg
         co2_kg = (energy_kwh * self.carbon_intensity) / 1000
         
         return {
@@ -165,15 +89,12 @@ class LogParser:
         }
 
     def generate_plots(self):
-        # Convert epochs to DataFrame
         df = pd.DataFrame(self.epochs)
         
-        # Calculate metrics
         df['cumulative_time'] = df['duration'].cumsum() / 60  # Keep this for x-axis
         df['energy_kwh'] = df['total_power'] * df['duration'] / 3600 / 1000
         df['co2_kg'] = df['energy_kwh'] * self.carbon_intensity / 1000
         
-        # Color scheme
         colors = {
             'primary': '#1A237E',
             'accent_blue': '#0072B2',
@@ -183,11 +104,9 @@ class LogParser:
             'grid': '#C5CAE9'
         }
         
-        # Create figure
         fig = plt.figure(figsize=(10, 6), constrained_layout=True)
         gs = fig.add_gridspec(2, 2, height_ratios=[1.15, 1], width_ratios=[1, 1], hspace=0.1, wspace=0.05)
         
-        # Power usage plot (top)
         ax1 = fig.add_subplot(gs[0, :])
         ax1.plot(df['cumulative_time'], df['gpu_power'], label='GPU', linewidth=3.5, marker='o', markersize=5, color=colors['accent_blue'])
         ax1.plot(df['cumulative_time'], df['cpu_power'], label='CPU', linewidth=3.5, marker='s', markersize=5, color=colors['accent_orange'])
@@ -198,7 +117,6 @@ class LogParser:
         ax1.legend(loc='upper right', frameon=True, fancybox=True, shadow=True, fontsize=9)
         ax1.grid(True, alpha=0.5, color=colors['grid'], linestyle='-', linewidth=0.8)
         
-        # Energy per epoch plot (bottom left)
         ax2 = fig.add_subplot(gs[1, 0])
         ax2.bar(df['epoch'], df['energy_kwh'], color=colors['accent_blue'], alpha=0.7)
         ax2.set_title('Energy per Epoch', pad=10, fontsize=12, color=colors['primary'])
@@ -206,7 +124,6 @@ class LogParser:
         ax2.set_ylabel('Energy (kWh)', fontsize=10)
         ax2.grid(True, alpha=0.5, color=colors['grid'], linestyle='-', linewidth=0.8)
         
-        # CO2 emissions per epoch plot (bottom right)
         ax3 = fig.add_subplot(gs[1, 1])
         ax3.bar(df['epoch'], df['co2_kg'], color=colors['co2'], alpha=0.7)
         ax3.set_title('CO2 Emissions per Epoch', pad=10, fontsize=12, color=colors['primary'])
@@ -214,7 +131,6 @@ class LogParser:
         ax3.set_ylabel('CO2 (kg)', fontsize=10)
         ax3.grid(True, alpha=0.5, color=colors['grid'], linestyle='-', linewidth=0.8)
         
-        # Save plot
         buf = io.BytesIO()
         plt.savefig(buf, format='png', dpi=600, bbox_inches='tight', facecolor='white')
         buf.seek(0)
@@ -223,14 +139,12 @@ class LogParser:
         return {'combined_plots': buf}
 
 def generate_report_from_log(log_file_path, output_path):
-    # Check if reportlab is installed
     if not REPORTLAB_AVAILABLE:
         raise ImportError(
             "The 'reportlab' package is required to generate PDF reports but is not installed. "
             "Please install it with: pip install 'carbontracker[pdfreport]'"
         )
     
-    # Read and parse log
     with open(log_file_path, 'r') as f:
         log_content = f.read()
     
@@ -238,7 +152,6 @@ def generate_report_from_log(log_file_path, output_path):
     metrics = parser.calculate_energy_metrics()
     plots = parser.generate_plots()
     
-    # Create PDF
     doc = SimpleDocTemplate(
         output_path,
         pagesize=letter,
@@ -248,7 +161,6 @@ def generate_report_from_log(log_file_path, output_path):
         bottomMargin=72
     )
     
-    # Styles
     styles = getSampleStyleSheet()
     title_style = ParagraphStyle(
         'CustomTitle',
@@ -276,7 +188,6 @@ def generate_report_from_log(log_file_path, output_path):
     )
     normal_style = styles['Normal']
     
-    # KPI Table
     kpi_data = [[
         Paragraph(f'<para align="center"><b><font size=16>{metrics["co2_kg"]:.3f} kg</font></b><br/><font size=10>CO2eq Emissions</font><br/><font size=8>Carbon Intensity: {parser.carbon_intensity:.2f} gCO2eq/kWh</font></para>', normal_style),
         Paragraph(f'<para align="center"><b><font size=16>{metrics["energy_kwh"]:.3f} kWh</font></b><br/><font size=10>Total Energy</font><br/><font size=8>Average Power: {metrics["total_power"]:.1f} W</font></para>', normal_style),
@@ -294,7 +205,6 @@ def generate_report_from_log(log_file_path, output_path):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 10),
     ]))
 
-    # Location Bar
     location_bar = Table(
         [[Paragraph(f'<b>Location:</b> {parser.location}', normal_style)]],
         colWidths=[6.3*inch]
@@ -312,7 +222,6 @@ def generate_report_from_log(log_file_path, output_path):
         ('BOX', (0, 0), (-1, -1), 1, colors.HexColor('#C5CAE9'))
     ]))
 
-    # Parse hardware components
     gpu_name = "-"
     cpu_name = "-"
     if parser.components:
@@ -323,7 +232,6 @@ def generate_report_from_log(log_file_path, output_path):
         if cpu_match:
             cpu_name = cpu_match.group(1).strip()
 
-    # System Power Table
     system_power_data = [
         [Paragraph('<b>System Power</b>', normal_style), ''],
         ['GPU Power', f'{metrics["avg_gpu_power"]:.1f} W ({gpu_name})'],
@@ -346,7 +254,6 @@ def generate_report_from_log(log_file_path, output_path):
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
     ]))
 
-    # Build document
     story = [
         Paragraph("Carbon Emissions Report", title_style),
         Paragraph(

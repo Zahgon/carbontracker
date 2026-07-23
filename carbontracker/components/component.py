@@ -48,22 +48,7 @@ def handlers_by_name(
     sim_gpu_watts=None,
     sim_gpu_util=None
 ):
-    for comp in COMPONENTS:
-        if comp["name"] == name:
-            if name == "cpu" and sim_cpu is not None and sim_cpu_tdp is not None:
-                return [lambda pids, devices_by_pid: SimulatedCPUHandler(
-                    sim_cpu, 
-                    float(sim_cpu_tdp),
-                    float(sim_cpu_util) if sim_cpu_util is not None else 0.5
-                )]
-            elif name == "gpu" and sim_gpu is not None and sim_gpu_watts is not None:
-                return [lambda pids, devices_by_pid: SimulatedGPUHandler(
-                    sim_gpu, 
-                    float(sim_gpu_watts),
-                    float(sim_gpu_util) if sim_gpu_util is not None else 0.5
-                )]
-            return comp["handlers"]
-    raise exceptions.ComponentNameError()
+    pass
 
 
 class Component:
@@ -101,9 +86,7 @@ class Component:
 
     @property
     def handler(self) -> Handler:
-        if self._handler is None:
-            raise error_by_name(self.name)
-        return self._handler
+        pass
 
     def _determine_handler(
         self, 
@@ -116,102 +99,25 @@ class Component:
         sim_gpu_watts=None,
         sim_gpu_util=None
     ) -> Union[Handler, None]:
-        handlers = handlers_by_name(
-            self.name, 
-            sim_cpu=sim_cpu,
-            sim_cpu_tdp=sim_cpu_tdp,
-            sim_cpu_util=sim_cpu_util,
-            sim_gpu=sim_gpu,
-            sim_gpu_watts=sim_gpu_watts,
-            sim_gpu_util=sim_gpu_util
-        )
-        for h in handlers:
-            handler = h(pids=pids, devices_by_pid=devices_by_pid) if callable(h) else h(pids=pids, devices_by_pid=devices_by_pid)
-            if handler.available():
-                return handler
-        return None
+        pass
 
     def devices(self) -> List[str]:
-        return self.handler.devices()
+        pass
 
     def available(self) -> bool:
-        return self._handler is not None
+        pass
 
     def collect_power_usage(self, epoch: int):
-        if epoch < 1:
-            return
-
-        if epoch != self.cur_epoch:
-            self.cur_epoch = epoch
-            # If we haven't measured for some epochs due to too slow
-            # update_interval, we copy previous epoch measurements s.t.
-            # there exists measurements for every epoch.
-            diff = self.cur_epoch - len(self.power_usages) - 1
-            if diff != 0:
-                for _ in range(diff):
-                    # Copy previous measurement lists.
-                    latest_measurements = (
-                        self.power_usages[-1] if self.power_usages else []
-                    )
-                    self.power_usages.append(latest_measurements)
-            self.power_usages.append([])
-        try:
-            self.power_usages[-1] += self.handler.power_usage()
-        except exceptions.IntelRaplPermissionError as e:
-            energy_paths = " and ".join(e.file_names)
-            commands = ["sudo chmod +r " + energy_path for energy_path in e.file_names]
-            # Only raise error if no measurements have been collected.
-            if not self.power_usages[-1]:
-                self.logger.err_critical(
-                    "Could not read CPU/DRAM energy consumption due to lack of read-permissions.\n\tPlease run the following command(s): \n\t\t" + "\n\t\t".join(commands)
-                    )
-            # Append zero measurement to avoid further errors.
-            self.power_usages.append([0])
-        except exceptions.GPUPowerUsageRetrievalError:
-            if not self.power_usages[-1]:
-                self.logger.err_critical(
-                    "GPU model does not support retrieval of power usages in NVML."
-                    "\nSee issue: https://github.com/lfwa/carbontracker/issues/36"
-                )
-                # Append zero measurement to avoid further errors.
-                self.power_usages.append([0])
+        pass
 
     def energy_usage(self, epoch_times: List[int]) -> List[int]:
-        """Returns energy (mWh) used by component per epoch."""
-        energy_usages = []
-        # We have to compute each epoch in a for loop since numpy cannot
-        # handle lists of uneven length.
-        for idx, (power, time) in enumerate(zip(self.power_usages, epoch_times)):
-            # If no power measurement exists, try to use measurements from
-            # later epochs.
-            while not power and idx != len(self.power_usages) - 1:
-                idx += 1
-                power = self.power_usages[idx]
-            if not power:
-                power = [[0]]
-            avg_power_usage = np.mean(power, axis=0)
-            energy_usage = np.multiply(avg_power_usage, time).sum()
-            # Convert from J to kWh.
-            if energy_usage != 0:
-                energy_usage /= 3600000
-            energy_usages.append(energy_usage)
-
-        # Ensure energy_usages and epoch_times have same length by
-        # copying latest measurement if it exists.
-        diff = len(epoch_times) - len(energy_usages)
-        if diff != 0:
-            for _ in range(0, diff):
-                # TODO: Warn that no measurements have been fetched.
-                latest_energy = energy_usages[-1] if energy_usages else 0
-                energy_usages.append(latest_energy)
-
-        return energy_usages
+        pass
 
     def init(self):
-        self.handler.init()
+        pass
 
     def shutdown(self):
-        self.handler.shutdown()
+        pass
 
 
 def create_components(
